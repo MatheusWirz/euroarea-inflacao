@@ -1,0 +1,9 @@
+body { color: #0B1F3A; }
+h1, h2, h3, .title { color: #0B1F3A; font-weight: 600; }
+h2 { border-bottom: 2px solid #0B1F3A; padding-bottom: 4px; margin-top: 2rem; }
+.kpi { display: flex; gap: 1rem; margin: 1.5rem 0; }
+.kpi div { flex: 1; background: #0B1F3A; color: white; padding: 1rem; border-radius: 4px; }
+.kpi span { display: block; font-size: 1.6rem; font-weight: 700; }
+
+.download-btn { display: inline-block; background: #0B1F3A; color: #fff !important; padding: 0.6rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 600; }
+.download-btn:hover { background: #1F4E8C; }

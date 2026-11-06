@@ -1,0 +1,150 @@
+---
+title: "Relatório de Inflação na Zona do Euro"
+subtitle: "Índice Harmonizado de Preços ao Consumidor (HICP) · Fonte: Eurostat"
+date: today
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    page-layout: article
+    css: styles.css
+jupyter: python3
+execute:
+  echo: false
+  warning: false
+---
+
+```{python}
+#| include: false
+import pandas as pd
+import base64
+from IPython.display import Markdown, display
+from functions import (load_all, line_chart, geo_code, get_weights, contributions,
+                       MAIN_GROUPS, incidence_chart, heatmap_pt, pt)
+
+# Uma única rodada de requisições alimenta o relatório inteiro.
+df = load_all()
+
+annual = df[df["unit"] == "PCH_M12"]
+latest_date = annual["period"].max()
+latest_label = latest_date.strftime("%B de %Y")
+
+headline = df[df["category"] == "All items"]
+h_year = headline[(headline["unit"] == "PCH_M12") & (headline["period"] == latest_date)]["value"].iloc[0]
+h_month = headline[(headline["unit"] == "PCH_M1") & (headline["period"] == latest_date)]["value"].iloc[0]
+
+# Categorias que são agregados/exclusões não entram no ranking de "itens",
+# senão a comparação fica enviesada.
+aggregates = df["category"].str.contains("excluding|^All items$|^Services$|^Non-energy|^Food, alcohol", regex=True)
+items = annual[~annual["category"].isin(df[aggregates]["category"].unique())]
+items_latest = items[items["period"] == latest_date]
+```
+
+## Panorama
+
+```{python}
+# O CSV vai embutido no próprio link, então o HTML continua sendo um arquivo
+# único e o botão funciona sem servidor. Formato largo: um mês por linha e
+# uma coluna por categoria/medida.
+medidas = {"PCH_M12": "variacao_anual_pct", "PCH_M1": "variacao_mensal_pct"}
+export = (df.assign(serie=df["category"].map(pt) + " - " + df["unit"].map(medidas))
+            .pivot_table(index="period", columns="serie", values="value")
+            .reset_index().rename(columns={"period": "mes"}))
+export["mes"] = export["mes"].dt.strftime("%Y-%m")
+csv_bytes = export.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig")
+csv_b64 = base64.b64encode(csv_bytes).decode()
+display(Markdown(
+    f'<a class="download-btn" download="inflacao_zona_euro.csv" '
+    f'href="data:text/csv;base64,{csv_b64}">Baixar série e categorias (CSV)</a>'
+))
+```
+
+```{python}
+display(Markdown(f"""
+Dados de **{geo_code}** (zona do euro) até **{latest_label}**.
+"""))
+```
+
+```{python}
+display(Markdown(f"""
+<div class="kpi">
+  <div>Inflação anual<span>{h_year:.1f}%</span></div>
+  <div>Variação mensal<span>{h_month:+.1f}%</span></div>
+  <div>Maior alta anual<span>{pt(items_latest.loc[items_latest['value'].idxmax(), 'category'])}</span></div>
+</div>
+"""))
+```
+
+## Evolução do índice geral
+
+A linha mostra quanto os preços subiram em relação ao mesmo mês do ano anterior;
+as barras mostram o movimento de um mês para o outro. Olhar os dois juntos ajuda a
+separar uma tendência de um pico isolado.
+
+```{python}
+line_chart(headline, "Índice geral: variação anual e mensal").show()
+```
+
+## Quem está puxando os preços
+
+Esta é a incidência: o peso de cada grupo na cesta multiplicado pela sua inflação
+anual. Em vez de olhar só quem subiu mais, o gráfico mostra quanto cada grupo
+realmente adiciona ao número final. Um item com alta forte mas peso pequeno pesa
+menos do que um serviço com alta moderada que ocupa boa parte do orçamento.
+
+```{python}
+weights, weight_year = get_weights()
+group_contrib = contributions(annual, weights, MAIN_GROUPS)
+incidence_chart(group_contrib, headline[headline["unit"] == "PCH_M12"],
+                "Incidência por grupo na inflação anual (p.p.)").show()
+```
+
+::: {.callout-note}
+Pesos de 2025, da zona do euro com 20 países (a Eurostat ainda não publica
+pesos para EA21). A conta é uma aproximação: peso × variação anual, sem o
+reajuste dos pesos ao longo do ano, por isso a soma pode diferir um pouco da
+inflação oficial.
+:::
+
+## Núcleo, energia e serviços
+
+O núcleo (que exclui energia, alimentos, álcool e tabaco) costuma ser lido como
+a tendência mais estrutural da inflação, já que tira os componentes mais voláteis.
+
+```{python}
+import plotly.graph_objects as go
+from functions import base_layout, NAVY, BLUE, LIGHT_BLUE, GREY
+
+wanted = {
+    "All items": NAVY,
+    "All items excluding energy, food, alcohol and tobacco": BLUE,
+    "Energy": LIGHT_BLUE,
+    "Services": GREY,
+}
+fig = go.Figure()
+for cat, color in wanted.items():
+    s = annual[annual["category"] == cat]
+    name = pt(cat)
+    fig.add_scatter(x=s["period"], y=s["value"], name=name, mode="lines",
+                    line=dict(color=color, width=3))
+fig.update_yaxes(ticksuffix="%")
+base_layout(fig, "Inflação anual: geral, núcleo, energia e serviços").show()
+```
+
+## Mapa de calor por categoria
+
+Uma visão geral da intensidade da inflação anual ao longo dos meses: quanto mais
+escuro, maior a variação.
+
+```{python}
+pivot = items.pivot_table(index="category", columns="period", values="value")
+pivot = pivot.loc[pivot.iloc[:, -1].sort_values(ascending=False).index]
+heatmap_pt(pivot, "Variação anual (%) por categoria e mês").show()
+```
+
+---
+
+*Relatório gerado automaticamente a partir da API da Eurostat. Para atualizar, basta
+renderizar novamente com `quarto render report.qmd`.*
+
