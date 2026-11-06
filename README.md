@@ -32,7 +32,6 @@ Relatório em HTML, gerado com [Quarto](https://quarto.org/) e [Plotly](https://
 
 ```bash
 git clone <url-do-repositorio>
-cd euro-inflation
 
 python -m venv .venv
 # Windows
