@@ -1,8 +1,8 @@
-# Relatório Automatizado de Inflação — Zona do Euro
+# Relatório Automatizado de Inflação | Zona do Euro
 
 Relatório em HTML, gerado com [Quarto](https://quarto.org/) e [Plotly](https://plotly.com/python/), que busca na API da Eurostat os dados do Índice Harmonizado de Preços ao Consumidor (HICP) e monta os gráficos automaticamente a cada execução.
 
-## O que o relatório mostra
+## O que tem no relatório
 
 - **Panorama:** inflação anual, variação mensal e categoria com maior alta, além de um botão para baixar a série em CSV.
 - **Evolução do índice geral:** variação anual (linha) e mensal (barras).
